@@ -50,6 +50,9 @@ if conf["use_dropbox"]:
 	client = DropboxClient(accessToken)
 	print "[SUCCESS] dropbox account linked"
 
+#create subtractor (no shadow - MOG, shadow - MOG2)
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+fgbg = cv2.BackgroundSubtractorMOG()
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -90,6 +93,10 @@ for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True
 	# convert frame to grayscale, and blur it for motion detection
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 	gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
+	#create fg mask
+	fgmask = fgbg.apply(frame)
+	fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
  
 	# if the average frame is None, initialize it
 	if avg is None:
@@ -191,7 +198,7 @@ for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True
 	if conf["show_video"]:
 		# display the security feed
 		cv2.imshow("Security Feed", frame)
-		#cv2.imshow('frame',frame)
+		cv2.imshow("FG Mask",fgmask)
 		#cv2.imshow('mask',mask)
 		cv2.imshow('Resolved White',resolve)
 		key = cv2.waitKey(1) & 0xFF

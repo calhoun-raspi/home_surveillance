@@ -19,11 +19,18 @@ baseUrl = "api.parse.com"
 
 # set color detection sensitivity
 sensitivity = 15
-# pixel detection parameters
-lower_color_base = [0,0,255-sensitivity]
-upper_color_base = [255,sensitivity,255]
+# pixel detection parameters on hsv color base
+#[COLOR]white
+#lower_color_base = [0,0,255-sensitivity]
+#upper_color_base = [255,sensitivity,255]
+#[COLOR]attempt at blue flame
+#lower_color_base = [100-sensitivity,0,237]
+#upper_color_base = [100,100,237+sensitivity]
+#BGR blue
+lower_color_base = [81,36,4]
+upper_color_base = [220,88,50]
 # set a pixel number threshold
-pixel_threshold = 10000
+pixel_threshold = 50
 
 # @TODO: need to set up push notifications, either by figuring out how to do it in python or opening up a port to a C program.... This way, the website can push data to update the usage of dropbox and we can deal with that accordingly.
 
@@ -33,6 +40,8 @@ ap.add_argument("-c", "--conf", required=True,
 	help="path to the JSON configuration file")
 args = vars(ap.parse_args())
  
+
+
 # filter warnings, load the configuration and initialize the Dropbox
 # client
 warnings.filterwarnings("ignore")
@@ -50,29 +59,54 @@ if conf["use_dropbox"]:
 	client = DropboxClient(accessToken)
 	print "[SUCCESS] dropbox account linked"
 
-#create subtractor (no shadow)
+#create subtractor (no shadow - MOG, shadow - MOG2)
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
 fgbg = cv2.BackgroundSubtractorMOG()
 
-# initialize the camera and grab a reference to the raw camera capture
-camera = PiCamera()
-camera.resolution = tuple(conf["resolution"])
-camera.framerate = conf["fps"]
-rawCapture = PiRGBArray(camera, size=tuple(conf["resolution"]))
+#check to see if we are using a video file
+if conf["use_video"] is False:
+	# initialize the camera and grab a reference to the raw camera capture
+	camera = PiCamera()
+	camera.resolution = tuple(conf["resolution"])
+	camera.framerate = conf["fps"]
+	rawCapture = PiRGBArray(camera, size=tuple(conf["resolution"]))
+	# allow the camera to warmup, 
+	print "[INFO] warming up..."
+	time.sleep(conf["camera_warmup_time"])
+	print("hello camera")
+
+# otherwise, we are reading from a video file
+else:
+	camera = cv2.VideoCapture(conf["video_file"])
+	#camera.resolution = tuple(conf["resolution"])
+	#camera.framerate = conf["fps"]
+	rawCapture = PiRGBArray(camera, size=tuple(conf["resolution"]))
+	print("hello video")
+
+
  
-# allow the camera to warmup, then initialize the average frame, last
+#then initialize the average frame, last
 # uploaded timestamp, and frame motion counter
-print "[INFO] warming up..."
-time.sleep(conf["camera_warmup_time"])
 avg = None
 lastUploaded = datetime.datetime.now()
 motionCounter = 0
 
 # capture frames from the camera
-for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+while True:
+	if conf["use_video"] is False:
+		camera.capture(rawCapture, format="bgr", use_video_port=True)
+		frame = rawCapture.array
+		#grabbed = True
+	else:
+		(grabbed, frame) = camera.read()
+		if not grabbed:
+			print("file didn't work")
+			break
+
+	
 	# grab the raw NumPy array representing the image and initialize
 	# the timestamp and occupied/unoccupied text
-	frame = f.array
+	
 	timestamp = datetime.datetime.now()
 	text = "Unoccupied"
  	
@@ -82,36 +116,47 @@ for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True
 	# capture a color sample (in hue, saturation, value space) of the frame for later object detection
 	hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 	
-	# hard code color profile to detect (for now)
+	# [COLOR] hard code color profile to detect (for now)
 	lower_color = np.array(lower_color_base, dtype=np.uint8)
 	upper_color = np.array(upper_color_base, dtype=np.uint8)
-	# threshold the color
-	mask = cv2.inRange(hsv, lower_color, upper_color)
-	# Bitwise AND the mask and the original image
-	resolve = cv2.bitwise_and(frame, frame, mask= mask)
+	# [COLOR] threshold the color hsv = hsv, frame = bgr
+	mask = cv2.inRange(frame, lower_color, upper_color)
+	# [COLOR] Bitwise AND the mask and the original image
+	resolve = cv2.bitwise_and(frame, frame, mask = mask)
 
-	# convert frame to grayscale, and blur it for motion detection
+	# [MOTION] convert frame to grayscale, and blur it for motion detection
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 	gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-	#create fg mask
+	# [BACKGROUND] create foreground mask
 	fgmask = fgbg.apply(frame)
 	fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
  
-	# if the average frame is None, initialize it
+	# [COLOR]
+	# count number of colored pixels
+	count_pix = cv2.countNonZero(mask) #COLORED PIXEL MASK
+	# draw box on the frame, and update the text
+	if count_pix >= pixel_threshold:
+		print "[EVENT] fire detected"
+		# purple rectangle
+		#cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
+		#text = "Occupied and detected" #could enumerate somewhere down the line to make more streamlined
+		#frame = cv2.bitwise_xor(frame, frame, mask= mask)
+
+	# [MOTION] if the average frame is None, initialize it
 	if avg is None:
 		print "[INFO] starting background model..."
 		avg = gray.copy().astype("float")
 		rawCapture.truncate(0)
 		continue
  
-	# accumulate the weighted average between the current frame and
+	# [MOTION] accumulate the weighted average between the current frame and
 	# previous frames, then compute the difference between the current
 	# frame and running average
 	cv2.accumulateWeighted(gray, avg, 0.5)
 	frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
 
-	# threshold the delta image, dilate the thresholded image to fill
+	# [MOTION] threshold the delta image, dilate the thresholded image to fill
 	# in holes, then find contours on thresholded image
 	thresh = cv2.threshold(frameDelta, conf["delta_thresh"], 255,
 		cv2.THRESH_BINARY)[1]
@@ -119,7 +164,7 @@ for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True
 	(cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 		cv2.CHAIN_APPROX_SIMPLE)
  
-	# loop over the contours
+	# [MOTION] loop over the contours
 	for c in cnts:
 		# if the contour is too small, ignore it
 		if cv2.contourArea(c) < conf["min_area"]:
@@ -128,14 +173,16 @@ for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True
 		# compute the bounding box for the contour
 		(x, y, w, h) = cv2.boundingRect(c)
 		# count number of colored pixels
-		count_pix = cv2.countNonZero(mask)
+		#count_pix = cv2.countNonZero(mask) #COLORED PIXEL MASK
 		# draw box on the frame, and update the text
-		if count_pix >= pixel_threshold:
-			cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
-			text = "Occupied and detected" #could enumerate somewhere down the line to make more streamlined
-		else:
-			cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-			text = "Occupied"
+		#if count_pix >= pixel_threshold:
+		#	# purple rectangle
+		#	cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
+		#	text = "Occupied and detected" #could enumerate somewhere down the line to make more streamlined
+		#else:
+		# green rectangle
+		cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+		text = "Occupied"
 		
  
 	# draw the text and timestamp on the frame
@@ -198,9 +245,9 @@ for f in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True
 	if conf["show_video"]:
 		# display the security feed
 		cv2.imshow("Security Feed", frame)
-		cv2.imshow("FG Mask",fgmask)
+		#cv2.imshow("FG Mask",fgmask)
 		#cv2.imshow('mask',mask)
-		cv2.imshow('Resolved White',resolve)
+		cv2.imshow('Resolved Color',resolve)
 		key = cv2.waitKey(1) & 0xFF
  
 		# if the `q` key is pressed, break from the lop
