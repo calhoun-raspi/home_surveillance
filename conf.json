@@ -1,6 +1,6 @@
 {
 	"show_video": true,
-	"use_video": true,
+	"use_video": false,
 	"video_file": "IMG_4646.MOV",
 	"use_dropbox": false,
 	"dropbox_key": "74ortp6e5ui5bxp",
