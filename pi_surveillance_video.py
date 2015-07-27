@@ -46,6 +46,7 @@ def acceptSocketConnection(listOfSockets):
 				if s is socketCallback:
 					conn, addr = socketCallback.accept()
 					currentData = conn.recv(1024)
+					print currentData[22]
 					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
 
@@ -127,6 +128,9 @@ if __name__=="__main__":
 	avg = None
 	lastUploaded = datetime.datetime.now()
 	motionCounter = 0
+	stoveOn = False
+	emailSent = False
+	lastdetected = datetime.datetime.now()
 
 	# capture frames from the camera
 	while True:
@@ -174,7 +178,10 @@ if __name__=="__main__":
 		count_pix = cv2.countNonZero(mask) #COLORED PIXEL MASK
 		# draw box on the frame, and update the text
 		if count_pix >= pixel_threshold:
-			print "[EVENT] fire detected"
+			#print "[EVENT] fire detected"
+			stoveOn = True
+		else:
+			stoveOn = False
 
 		# [MOTION] if the average frame is None, initialize it
 		if avg is None:
@@ -221,9 +228,13 @@ if __name__=="__main__":
 		# check to see if the room is occupied
 		if text == "Occupied" or text == "Occupied and detected":
 			# check to see if enough time has passed between uploads
+			lastdetected = timestamp
+			emailSent = False
 			if (timestamp - lastUploaded).seconds >= conf["min_upload_seconds"]:
 				# increment the motion counter
 				motionCounter += 1
+				print motionCounter
+				#leftOnTimer = 60
 	 
 				# check to see if the number of frames with consistent motion is
 				# high enough
@@ -250,11 +261,11 @@ if __name__=="__main__":
 					connection = httplib.HTTPSConnection(baseUrl, 443)
 					connection.connect()
 					#change back to 'PUT' if handling specific object ID
-					#put the timestamp in as a string?
+					#put the timestamp in as a regular number for querying purposes
 					connection.request('POST', '/1/classes/Detect', json.dumps({
-							"timestamp": timestamp.strftime("%A %d %B %Y %I:%M:%S%p"),
-							"toDropBox": conf["use_dropbox"],
-							"foundtarget": text == "Occupied and detected"
+							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
+							"foundtarget": stoveOn,
+							"foundmotion": text == "Occupied"
 						}), {
 							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
 							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
@@ -266,6 +277,15 @@ if __name__=="__main__":
 		# otherwise, the room is not occupied
 		else:
 			motionCounter = 0
+			if stoveOn == True:
+				print (timestamp - lastdetected).seconds
+				print emailSent
+				if (timestamp - lastdetected).seconds == conf["stove_timer"] and emailSent == False:
+					#leftOnTimer -= 1
+					#print leftOnTimer
+					#if leftOnTimer == 0:
+					emailSent = True
+		                        p1 = subprocess.Popen('python ./emailtest.py', shell=True, preexec_fn=os.setsid)
 
 		# check to see if the frames should be displayed to screen
 		if conf["show_video"]:
