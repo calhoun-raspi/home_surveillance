@@ -18,6 +18,7 @@ import json
 import httplib
 import time
 import cv2
+import smtplib
 from threading import Thread
 
 HOST = "127.0.0.1"
@@ -144,6 +145,8 @@ if __name__=="__main__":
 	avg = None
 	lastUploaded = datetime.datetime.now()
 	motionCounter = 0
+	stoveOn = False
+	leftOnTimer = 60
 
 	# capture frames from the camera
 	while True:
@@ -192,10 +195,13 @@ if __name__=="__main__":
 		# draw box on the frame, and update the text
 		if count_pix >= pixel_threshold:
 			print "[EVENT] fire detected"
+			stoveOn = True
 			# purple rectangle
 			#cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
 			#text = "Occupied and detected" #could enumerate somewhere down the line to make more streamlined
 			#frame = cv2.bitwise_xor(frame, frame, mask= mask)
+		else:
+			stoveOn = False
 
 		# [MOTION] if the average frame is None, initialize it
 		if avg is None:
@@ -252,6 +258,8 @@ if __name__=="__main__":
 			if (timestamp - lastUploaded).seconds >= conf["min_upload_seconds"]:
 				# increment the motion counter
 				motionCounter += 1
+				leftOnTimer = 60
+				print motionCounter
 	 
 				# check to see if the number of frames with consistent motion is
 				# high enough
@@ -279,13 +287,13 @@ if __name__=="__main__":
 					connection.connect()
 					#change back to 'PUT' if handling specific object ID
 					#put the timestamp in as a string?
-					connection.request('POST', '/1/classes/Detect', json.dumps({
+					connection.request('POST', '/1/classes/home_surveillance', json.dumps({
 							"timestamp": timestamp.strftime("%A %d %B %Y %I:%M:%S%p"),
 							"toDropBox": conf["use_dropbox"],
 							"foundtarget": text == "Occupied and detected"
 						}), {
-							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
-							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
+							"X-Parse-Application-Id": "yka28ryUVLQ6mENhDDRsrVQeL1o1o1XfZ0R2jFxg",
+							"X-Parse-REST-API-Key": "XUcYyO3KlFuueb3AFy5jP3IHxiwz6lkFMRuzRUPS",
 							"Content-Type": "application/json"
 						})
 					results = json.loads(connection.getresponse().read())
@@ -294,6 +302,11 @@ if __name__=="__main__":
 		# otherwise, the room is not occupied
 		else:
 			motionCounter = 0
+			if (timestamp - lastUploaded).seconds >= conf["min_upload_seconds"] and stoveOn == True:
+				leftOnTimer -= 1
+				print leftOnTimer
+				if leftOnTimer == 0:
+                                        p1 = subprocess.Popen('python ./emailtest.py', shell=True, preexec_fn=os.setsid)
 
 		# check to see if the frames should be displayed to screen
 		if conf["show_video"]:

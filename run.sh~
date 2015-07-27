@@ -2,7 +2,7 @@
 
 #cd Bulb
 rm -f *.o callback
-gcc -c callback.c -o callback
+#gcc -c callback.c -o callback
 sudo chmod +x callback
-#make clean all
+make clean all
 python pi_surveillance_video.py --conf conf.json

@@ -1,16 +1,17 @@
 {
 	"show_video": true,
-	"use_video": false,
+	"use_video": true,
 	"video_file": "IMG_4646.MOV",
 	"use_dropbox": false,
-	"dropbox_key": "74ortp6e5ui5bxp",
-	"dropbox_secret": "8l9an2uxcstvibf",
-	"dropbox_base_path": "IoT_pi_surveillance",
+	"dropbox_key": "c1mrqa8cv2z7she",
+	"dropbox_secret": "v0nbi0d40eeij5d",
+	"dropbox_base_path": "IoT_pi_surveillance2",
 	"min_upload_seconds": 3.0,
 	"min_motion_frames": 4,
 	"camera_warmup_time": 2.5,
 	"delta_thresh": 5,
 	"resolution": [640, 480],
 	"fps": 16,
-	"min_area": 2500
+	"min_area": 2500,
+	"send_email": true
 }

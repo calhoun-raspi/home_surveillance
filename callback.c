@@ -114,7 +114,7 @@ void *threadPushNotifications()
 	//IOT_RPI_SCL ParseClient client = parseInitialize("kayWALfBm6h1SQdANXoZtTZqA0N9sZsB7cwUUVod", "7Nw0R9LTDXR7lRhmPsArePQMralFW8Yt7DL2zWTS");
 	//Group 14 SCL ParseClient client = parseInitialize("TSexah1prtbhpF6w4dellQ2XYWyk2bqcljOiElrN", "xLnvnzcTMO1w9MwuFNBTO6hLjOtnKmZn4iz4SBnu");
 	//Group 14 surveillance
-	ParseClient client = parseInitialize("ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI", "NVqqhuoWKdxJS6bNI5lPvignPXZahOlc8Ylr9zDc");
+	ParseClient client = parseInitialize("yka28ryUVLQ6mENhDDRsrVQeL1o1o1XfZ0R2jFxg", "n5T7ZDweksviJCgTe8GPV9RX0NpGn0votZaSmrOH");
 	char *installationId = parseGetInstallationId(client);
 
 	parseSetInstallationId(client, dataUUID);
