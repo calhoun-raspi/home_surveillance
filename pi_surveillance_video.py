@@ -35,7 +35,7 @@ def createServerSocket(port):
 
 # We listen on sockets on PORTs defined above
 def acceptSocketConnection(listOfSockets):
-	global currentData#intensity, currentTime, briefWeather, weatherDesc, city, country
+	global currentData
 	while(True):
 		inputs = listOfSockets
 		print listOfSockets
@@ -48,17 +48,6 @@ def acceptSocketConnection(listOfSockets):
 					currentData = conn.recv(1024)
 					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
-				#if s is socketBulb:
-				#	conn, addr = socketBulb.accept()
-				#	intensity = conn.recv(10)
-				#	conn.close()
-				#if s is socketLocalInfo:
-				#	conn, addr = socketLocalInfo.accept()
-				#	data = conn.recv(1024)
-				#	city = data.split("\n")[0] + "\n"
-				##	briefWeather = data.split("\n")[2] + "\n"
-				#	weatherDesc = data.split("\n")[3] + "\n"
-				#	conn.close()
 
 # main()
 if __name__=="__main__":
@@ -89,13 +78,7 @@ if __name__=="__main__":
 
 	# set color detection sensitivity
 	sensitivity = 15
-	# pixel detection parameters on hsv color base
-	#[COLOR]white
-	#lower_color_base = [0,0,255-sensitivity]
-	#upper_color_base = [255,sensitivity,255]
-	#[COLOR]attempt at blue flame
-	#lower_color_base = [100-sensitivity,0,237]
-	#upper_color_base = [100,100,237+sensitivity]
+	# pixel detection parameters on rgb color base
 	#BGR blue
 	lower_color_base = [81,36,4]
 	upper_color_base = [220,88,50]
@@ -113,9 +96,9 @@ if __name__=="__main__":
 		client = DropboxClient(accessToken)
 		print "[SUCCESS] dropbox account linked"
 
-	#create subtractor (no shadow - MOG, shadow - MOG2)
-	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
-	fgbg = cv2.BackgroundSubtractorMOG()
+	#[NOT USED - BACKGROUND] create subtractor (no shadow - MOG, shadow - MOG2)
+	#kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+	#fgbg = cv2.BackgroundSubtractorMOG()
 
 	#check to see if we are using a video file
 	if conf["use_video"] is False:
@@ -167,8 +150,8 @@ if __name__=="__main__":
 		# resize the frame
 		frame = imutils.resize(frame, width=500)
 
-		# capture a color sample (in hue, saturation, value space) of the frame for later object detection
-		hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+		# [NOT USED] capture a color sample (in hue, saturation, value space) of the frame for later object detection
+		#hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
 		# [COLOR] hard code color profile to detect (for now)
 		lower_color = np.array(lower_color_base, dtype=np.uint8)
@@ -182,9 +165,9 @@ if __name__=="__main__":
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 		gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-		# [BACKGROUND] create foreground mask
-		fgmask = fgbg.apply(frame)
-		fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
+		# [NOT USED - BACKGROUND] create foreground mask
+		#fgmask = fgbg.apply(frame)
+		#fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
 	 
 		# [COLOR]
 		# count number of colored pixels
@@ -192,10 +175,6 @@ if __name__=="__main__":
 		# draw box on the frame, and update the text
 		if count_pix >= pixel_threshold:
 			print "[EVENT] fire detected"
-			# purple rectangle
-			#cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
-			#text = "Occupied and detected" #could enumerate somewhere down the line to make more streamlined
-			#frame = cv2.bitwise_xor(frame, frame, mask= mask)
 
 		# [MOTION] if the average frame is None, initialize it
 		if avg is None:
@@ -226,14 +205,7 @@ if __name__=="__main__":
 	 
 			# compute the bounding box for the contour
 			(x, y, w, h) = cv2.boundingRect(c)
-			# count number of colored pixels
-			#count_pix = cv2.countNonZero(mask) #COLORED PIXEL MASK
-			# draw box on the frame, and update the text
-			#if count_pix >= pixel_threshold:
-			#	# purple rectangle
-			#	cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
-			#	text = "Occupied and detected" #could enumerate somewhere down the line to make more streamlined
-			#else:
+
 			# green rectangle
 			cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 			text = "Occupied"
@@ -299,8 +271,6 @@ if __name__=="__main__":
 		if conf["show_video"]:
 			# display the security feed
 			cv2.imshow("Security Feed", frame)
-			#cv2.imshow("FG Mask",fgmask)
-			#cv2.imshow('mask',mask)
 			cv2.imshow('Resolved Color',resolve)
 			key = cv2.waitKey(1) & 0xFF
 	 
