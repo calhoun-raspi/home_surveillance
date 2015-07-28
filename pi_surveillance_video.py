@@ -47,6 +47,16 @@ def acceptSocketConnection(listOfSockets):
 					conn, addr = socketCallback.accept()
 					currentData = conn.recv(1024)
 					#print currentData[22]
+					if currentData[22] == 'A':
+						print "camera::Got Maximum Color Threshold"						
+					elif currentData[22] == 'I':
+						print "camera::Got Minimum Color Threshold"
+					elif currentData[22] == 'X':
+						print "camera::Got Pixel Sensitivity"
+					elif currentData[22] == 'E':
+						print "camera::Got Time to target"
+					else:
+						print "camera::Invalid information from Callback"
 					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
 
@@ -77,7 +87,7 @@ if __name__=="__main__":
 	conf = json.load(open(args["conf"]))
 	client = None
 
-	# set color detection sensitivity
+	# [NOT USED] set color detection sensitivity
 	sensitivity = 15
 	# pixel detection parameters on rgb color base
 	#BGR blue
@@ -85,6 +95,8 @@ if __name__=="__main__":
 	upper_color_base = [255,100,50]
 	# set a pixel number threshold
 	pixel_threshold = 50
+	# set a timer for target detection
+	target_timer = 10
 
 	if conf["use_dropbox"]:
 		# pause subprocesses and threads since this portion requires terminal access
@@ -270,7 +282,11 @@ if __name__=="__main__":
 					connection.request('POST', '/1/classes/Detect', json.dumps({
 							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
 							"foundtarget": stoveOn,
-							"foundmotion": text == "Occupied"
+							"foundmotion": text == "Occupied",
+							"lowercolorbase": str(lower_color),
+							"uppercolorbase": str(upper_color),
+							"pixthresh": pixel_threshold,
+							"timetotarget": target_timer
 						}), {
 							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
 							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
@@ -285,7 +301,7 @@ if __name__=="__main__":
 			if stoveOn == True:
 				#print (timestamp - lastdetected).seconds
 				#print emailSent
-				if (timestamp - lastdetected).seconds == conf["stove_timer"] and emailSent == False:
+				if (timestamp - lastdetected).seconds == target_timer and emailSent == False:
 					#leftOnTimer -= 1
 					#print leftOnTimer
 					#if leftOnTimer == 0:
@@ -317,7 +333,11 @@ if __name__=="__main__":
 					connection.request('POST', '/1/classes/Detect', json.dumps({
 							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
 							"foundtarget": stoveOn,
-							"foundmotion": text == "Occupied"
+							"foundmotion": text == "Occupied",
+							"lowercolorbase": str(lower_color),
+							"uppercolorbase": str(upper_color),
+							"pixthresh": pixel_threshold,
+							"timetotarget": target_timer
 						}), {
 							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
 							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",

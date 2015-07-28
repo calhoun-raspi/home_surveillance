@@ -98,7 +98,7 @@ void callbackFunction(ParseClient client, int error, const char *buffer)
 /*void callbackFunction(ParseClient client, int error, int httpStatus, const char* httpResponseBody) */{
 	/*if (error == 0 && httpResponseBody != NULL) */ 	
 	if (error == 0 && buffer != NULL){
-		printf("callback:callback()::Received Push Data: '%s'\n", buffer);
+		//printf("callback:callback()::Received Push Data: '%s'\n", buffer);
 	}
 	strcpy(copied_string, buffer);
 	printf("Beginning of callback()\n");
