@@ -46,7 +46,7 @@ def acceptSocketConnection(listOfSockets):
 				if s is socketCallback:
 					conn, addr = socketCallback.accept()
 					currentData = conn.recv(1024)
-					print currentData[22]
+					#print currentData[22]
 					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
 
@@ -82,11 +82,13 @@ if __name__=="__main__":
 	# pixel detection parameters on rgb color base
 	#BGR blue
 	lower_color_base = [81,36,4]
-	upper_color_base = [220,88,50]
+	upper_color_base = [255,100,50]
 	# set a pixel number threshold
 	pixel_threshold = 50
 
 	if conf["use_dropbox"]:
+		# pause subprocesses and threads since this portion requires terminal access
+		os.kill(p1.pid, signal.SIGSTOP)
 		# connect to dropbox and start the session authorization process
 		flow = DropboxOAuth2FlowNoRedirect(conf["dropbox_key"], conf["dropbox_secret"])
 		print "[INFO] Authorize this application: {}".format(flow.start())
@@ -96,6 +98,9 @@ if __name__=="__main__":
 		(accessToken, userID) = flow.finish(authCode)
 		client = DropboxClient(accessToken)
 		print "[SUCCESS] dropbox account linked"
+		
+		#resume processes
+		os.kill(p1.pid, signal.SIGCONT)
 
 	#[NOT USED - BACKGROUND] create subtractor (no shadow - MOG, shadow - MOG2)
 	#kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
@@ -226,20 +231,20 @@ if __name__=="__main__":
 			0.35, (0, 0, 255), 1)
 
 		# check to see if the room is occupied
-		if text == "Occupied" or text == "Occupied and detected":
+		if text == "Occupied":
 			# check to see if enough time has passed between uploads
 			lastdetected = timestamp
 			emailSent = False
 			if (timestamp - lastUploaded).seconds >= conf["min_upload_seconds"]:
 				# increment the motion counter
 				motionCounter += 1
-				print motionCounter
+				#print motionCounter
 				#leftOnTimer = 60
 	 
 				# check to see if the number of frames with consistent motion is
 				# high enough
-				if motionCounter >= conf["min_motion_frames"]:
-					# check to see if dropbox sohuld be used
+				if (motionCounter >= conf["min_motion_frames"]):
+					# check to see if dropbox should be used
 					if conf["use_dropbox"]:
 						# write the image to temporary file
 						t = TempImage()
@@ -278,14 +283,48 @@ if __name__=="__main__":
 		else:
 			motionCounter = 0
 			if stoveOn == True:
-				print (timestamp - lastdetected).seconds
-				print emailSent
+				#print (timestamp - lastdetected).seconds
+				#print emailSent
 				if (timestamp - lastdetected).seconds == conf["stove_timer"] and emailSent == False:
 					#leftOnTimer -= 1
 					#print leftOnTimer
 					#if leftOnTimer == 0:
 					emailSent = True
 		                        p1 = subprocess.Popen('python ./emailtest.py', shell=True, preexec_fn=os.setsid)
+
+					if conf["use_dropbox"]:
+						# write the image to temporary file
+						t = TempImage()
+						cv2.imwrite(t.path, frame)
+	 
+						# upload the image to Dropbox and cleanup the temporary image
+						print "[UPLOAD] {}".format(ts)
+						path = "{base_path}/{timestamp}.jpg".format(
+							base_path=conf["dropbox_base_path"], timestamp=ts)
+						client.put_file(path, open(t.path, "rb"))
+						t.cleanup()
+	 
+					# update the last uploaded timestamp and reset the motion
+					# counter
+					lastUploaded = timestamp
+					motionCounter = 0
+					print timestamp.strftime("%A %d %B %Y %I:%M:%S%p")
+					#make attempt to update on Parse the status of the motion detection
+					connection = httplib.HTTPSConnection(baseUrl, 443)
+					connection.connect()
+					#change back to 'PUT' if handling specific object ID
+					#put the timestamp in as a regular number for querying purposes
+					connection.request('POST', '/1/classes/Detect', json.dumps({
+							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
+							"foundtarget": stoveOn,
+							"foundmotion": text == "Occupied"
+						}), {
+							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
+							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
+							"Content-Type": "application/json"
+						})
+					results = json.loads(connection.getresponse().read())
+					print results
 
 		# check to see if the frames should be displayed to screen
 		if conf["show_video"]:
