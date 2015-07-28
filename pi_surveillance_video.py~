@@ -25,6 +25,12 @@ HOST = "127.0.0.1"
 baseUrl = "api.parse.com"
 PORT_CALLBACK = 50008
 
+#Initialize global variables to be changed by callbacks
+address = 'jco2127@columbia.edu'
+lower_color_base = [81,36,4]
+upper_color_base = [255,100,50]
+target_timer = 10
+
 # Function to create a socket for server and listen on respective port. We invoke this from main()
 def createServerSocket(port):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,22 +53,31 @@ def acceptSocketConnection(listOfSockets):
 				if s is socketCallback:
 					conn, addr = socketCallback.accept()
 					currentData = conn.recv(1024)
+					currentDataNumber = 22
 					#print currentData[22]
 					if currentData[22] == 'A':
-						print "camera::Got Maximum Color Threshold"						
+						currentDataNumber += 2
+						print "camera::Got Maximum Color Threshold"	
+						str1 = currentData[currentDataNumber++]
+						print str1
+						print currentDataNumber
+						#if 
+						upper_color_base = [255,100,50]				
 					elif currentData[22] == 'I':
 						print "camera::Got Minimum Color Threshold"
 					elif currentData[22] == 'X':
 						print "camera::Got Pixel Sensitivity"
 					elif currentData[22] == 'E':
 						print "camera::Got Time to target"
+					elif currentData[22] == 'M':
+						print "camera::Got Email address"
 					else:
 						print "camera::Invalid information from Callback"
 					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
 
 # Email function
-def sendEmail(address):
+def sendEmail():
 	message = """From: Charles Xavier <iotgroup14@gmail.com>
 To: <%s>
 Subject: Burner Left On
@@ -74,7 +89,7 @@ You left your stove on, idiot!
 	   smtpObj.starttls()
 	   smtpObj.login('iotgroup14', 'P@$sw0rd1234')
 	   smtpObj.sendmail('iotgroup14@gmail.com', [address], message)
-	   smtpObj.quit()         
+	   smtpObj.quit()
 	   print "Successfully sent email"
 	except Exception:
 	   print "Error: unable to send email"
@@ -108,14 +123,8 @@ if __name__=="__main__":
 
 	# [NOT USED] set color detection sensitivity
 	sensitivity = 15
-	# pixel detection parameters on rgb color base
-	#BGR blue
-	lower_color_base = [81,36,4]
-	upper_color_base = [255,100,50]
 	# set a pixel number threshold
 	pixel_threshold = 50
-	# set a timer for target detection
-	target_timer = 10
 
 	if conf["use_dropbox"]:
 		# pause subprocesses and threads since this portion requires terminal access
@@ -318,14 +327,14 @@ if __name__=="__main__":
 		else:
 			motionCounter = 0
 			if colorDetected == True:
-				#print (timestamp - lastdetected).seconds
+				print (timestamp - lastdetected).seconds
 				#print emailSent
 				if (timestamp - lastdetected).seconds == target_timer and emailSent == False:
 					#leftOnTimer -= 1
 					#print leftOnTimer
 					#if leftOnTimer == 0:
 					emailSent = True
-					thread2 = Thread(target = sendEmail, args = ('jco2127@columbia.edu', ))
+					thread2 = Thread(target = sendEmail, args = ())
 					thread2.daemon = True
 					thread2.start()
 

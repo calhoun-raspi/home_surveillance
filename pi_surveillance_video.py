@@ -25,6 +25,13 @@ HOST = "127.0.0.1"
 baseUrl = "api.parse.com"
 PORT_CALLBACK = 50008
 
+#Initialize global variables to be changed by callbacks
+address = 'jco2127@columbia.edu'
+lower_color_base = [81,36,4]
+upper_color_base = [255,100,50]
+target_timer = 10
+pixel_threshold = 50
+
 # Function to create a socket for server and listen on respective port. We invoke this from main()
 def createServerSocket(port):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,22 +54,128 @@ def acceptSocketConnection(listOfSockets):
 				if s is socketCallback:
 					conn, addr = socketCallback.accept()
 					currentData = conn.recv(1024)
+					currentDataNumber = 22
 					#print currentData[22]
-					if currentData[22] == 'A':
-						print "camera::Got Maximum Color Threshold"						
-					elif currentData[22] == 'I':
-						print "camera::Got Minimum Color Threshold"
+					print "camera::acceptSocketConnection() data is: " + currentData
+					if currentData[22] == 'A' or currentData[22] == 'I':
+						currentDataNumber += 3
+						str1 = currentData[currentDataNumber]
+						currentDataNumber += 1
+						while currentData[currentDataNumber] != ',':                                                        
+                                                        str1 += currentData[currentDataNumber]
+                                                        currentDataNumber += 1
+                                                currentDataNumber += 2
+                                                str2 = currentData[currentDataNumber]   
+						currentDataNumber += 1
+						while currentData[currentDataNumber] != ',':                                                        
+                                                        str2 += currentData[currentDataNumber]
+                                                        currentDataNumber += 1
+                                                        #print currentDataNumber
+                                                currentDataNumber += 2
+                                                str3 = currentData[currentDataNumber]    
+						currentDataNumber += 1                                            
+						while currentData[currentDataNumber] != ']':                                                        
+                                                        str3 += currentData[currentDataNumber]
+                                                        currentDataNumber += 1
+                                                if currentData[22] == 'A':
+                                                        print "camera::Got Maximum Color Threshold"
+                                                        global upper_color_base
+                                                        upper_color_base = [int(str1),int(str2),int(str3)]
+                                                        print upper_color_base		
+                                                        #upper_color = np.array(upper_color_base, dtype=np.uint8)
+                                                        #updateOnParse("uppercolorbase", str(upper_color))	
+                                                else:
+                                                        print "camera::Got Minimum Color Threshold"	
+                                                        global lower_color_base
+                                                        lower_color_base = [int(str1),int(str2),int(str3)]
+                                                        print lower_color_base
+                                                        #lower_color = np.array(lower_color_base, dtype=np.uint8)
+                                                        #updateOnParse("lowercolorbase", str(lower_color))	
 					elif currentData[22] == 'X':
 						print "camera::Got Pixel Sensitivity"
+						currentDataNumber += 3
+						str1 = currentData[currentDataNumber]	
+                                                currentDataNumber += 1					
+						while currentData[currentDataNumber] != ']':                                                        
+                                                        str1 += currentData[currentDataNumber]
+                                                        currentDataNumber += 1
+                                                global pixel_threshold
+                                                pixel_threshold = int(str1)
+                                                print "New value: %d" % pixel_threshold
+                                                #updateOnParse("pixthresh", pixel_threshold)
 					elif currentData[22] == 'E':
 						print "camera::Got Time to target"
+						currentDataNumber += 3
+						str1 = currentData[currentDataNumber]	
+                                                currentDataNumber += 1					
+						while currentData[currentDataNumber] != ']':                                                        
+                                                        str1 += currentData[currentDataNumber]
+                                                        currentDataNumber += 1
+                                                global target_timer
+                                                target_timer = int(str1)
+                                                print "New value: %d" % target_timer
+                                                #updateOnParse("timetotarget", target_timer)
+					elif currentData[22] == 'M':
+						print "camera::Got Email address"
+						currentDataNumber += 3
+						str1 = currentData[currentDataNumber]	
+                                                currentDataNumber += 1					
+						while currentData[currentDataNumber] != ']':                                                        
+                                                        str1 += currentData[currentDataNumber]
+                                                        currentDataNumber += 1
+                                                global address
+                                                address = str1
+                                                print "New value: %s" % address
 					else:
 						print "camera::Invalid information from Callback"
-					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
 
+#make attempt to update on Parse the status of the motion detection
+def updateOnParseAll(timestamp, colorDetected, text):
+        #print lower_color_base
+	lower_color = np.array(lower_color_base, dtype=np.uint8)
+	upper_color = np.array(upper_color_base, dtype=np.uint8)
+        connection = httplib.HTTPSConnection(baseUrl, 443)
+        connection.connect()
+        #change back to 'PUT' if handling specific object ID
+        #put the timestamp in as a regular number for querying purposes
+        connection.request('POST', '/1/classes/Detect', json.dumps({
+                "timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
+                "foundtarget": colorDetected,
+                "foundmotion": text == "Occupied",
+                "lowercolorbase": str(lower_color),
+                "uppercolorbase": str(upper_color),
+                "pixthresh": pixel_threshold,
+                "timetotarget": target_timer
+        }), {
+                "X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
+                "X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
+                "Content-Type": "application/json"
+        })
+        results = json.loads(connection.getresponse().read())
+        print results
+
+#Parse Updater for callback function. Need way to obtain most recent ID!
+def updateOnParse(stringToChange, value):
+        print lower_color_base
+	lower_color = np.array(lower_color_base, dtype=np.uint8)
+	upper_color = np.array(upper_color_base, dtype=np.uint8)
+        connection = httplib.HTTPSConnection(baseUrl, 443)
+        connection.connect()
+        #change back to 'PUT' if handling specific object ID
+        #put the timestamp in as a regular number for querying purposes
+        connection.request('PUT', '/1/classes/Detect', json.dumps({
+                stringToChange: value
+        }), {
+                "X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
+                "X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
+                "Content-Type": "application/json"
+        })
+        results = json.loads(connection.getresponse().read())
+        print results
+
 # Email function
-def sendEmail(address):
+def sendEmail():
 	message = """From: Charles Xavier <iotgroup14@gmail.com>
 To: <%s>
 Subject: Burner Left On
@@ -74,14 +187,13 @@ You left your stove on, idiot!
 	   smtpObj.starttls()
 	   smtpObj.login('iotgroup14', 'P@$sw0rd1234')
 	   smtpObj.sendmail('iotgroup14@gmail.com', [address], message)
-	   smtpObj.quit()         
+	   smtpObj.quit()
 	   print "Successfully sent email"
 	except Exception:
 	   print "Error: unable to send email"
 
 # main()
 if __name__=="__main__":
-
 	#Create socket for push callback from Parse
 	socketCallback = createServerSocket(PORT_CALLBACK)
 	socketList = [socketCallback]
@@ -108,14 +220,6 @@ if __name__=="__main__":
 
 	# [NOT USED] set color detection sensitivity
 	sensitivity = 15
-	# pixel detection parameters on rgb color base
-	#BGR blue
-	lower_color_base = [81,36,4]
-	upper_color_base = [255,100,50]
-	# set a pixel number threshold
-	pixel_threshold = 50
-	# set a timer for target detection
-	target_timer = 10
 
 	if conf["use_dropbox"]:
 		# pause subprocesses and threads since this portion requires terminal access
@@ -292,27 +396,10 @@ if __name__=="__main__":
 					# counter
 					lastUploaded = timestamp
 					motionCounter = 0
-					print timestamp.strftime("%A %d %B %Y %I:%M:%S%p")
-					#make attempt to update on Parse the status of the motion detection
-					connection = httplib.HTTPSConnection(baseUrl, 443)
-					connection.connect()
-					#change back to 'PUT' if handling specific object ID
-					#put the timestamp in as a regular number for querying purposes
-					connection.request('POST', '/1/classes/Detect', json.dumps({
-							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
-							"foundtarget": colorDetected,
-							"foundmotion": text == "Occupied",
-							"lowercolorbase": str(lower_color),
-							"uppercolorbase": str(upper_color),
-							"pixthresh": pixel_threshold,
-							"timetotarget": target_timer
-						}), {
-							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
-							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
-							"Content-Type": "application/json"
-						})
-					results = json.loads(connection.getresponse().read())
-					print results
+					print timestamp.strftime("%A %d %B %Y %I:%M:%S%p")					
+					thread2 = Thread(target = updateOnParseAll, args = (timestamp, colorDetected, text, ))
+					thread2.daemon = True
+					thread2.start()
 	 
 		# otherwise, the room is not occupied
 		else:
@@ -325,9 +412,9 @@ if __name__=="__main__":
 					#print leftOnTimer
 					#if leftOnTimer == 0:
 					emailSent = True
-					thread2 = Thread(target = sendEmail, args = ('jco2127@columbia.edu', ))
-					thread2.daemon = True
-					thread2.start()
+					thread3 = Thread(target = sendEmail, args = ())
+					thread3.daemon = True
+					thread3.start()
 
 					if conf["use_dropbox"]:
 						# write the image to temporary file
@@ -345,27 +432,10 @@ if __name__=="__main__":
 					# counter
 					lastUploaded = timestamp
 					motionCounter = 0
-					print timestamp.strftime("%A %d %B %Y %I:%M:%S%p")
-					#make attempt to update on Parse the status of the motion detection
-					connection = httplib.HTTPSConnection(baseUrl, 443)
-					connection.connect()
-					#change back to 'PUT' if handling specific object ID
-					#put the timestamp in as a regular number for querying purposes
-					connection.request('POST', '/1/classes/Detect', json.dumps({
-							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
-							"foundtarget": colorDetected,
-							"foundmotion": text == "Occupied",
-							"lowercolorbase": str(lower_color),
-							"uppercolorbase": str(upper_color),
-							"pixthresh": pixel_threshold,
-							"timetotarget": target_timer
-						}), {
-							"X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
-							"X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
-							"Content-Type": "application/json"
-						})
-					results = json.loads(connection.getresponse().read())
-					print results
+					print timestamp.strftime("%A %d %B %Y %I:%M:%S%p")					
+					thread4 = Thread(target = updateOnParseAll, args = (timestamp, colorDetected, text, ))
+					thread4.daemon = True
+					thread4.start()
 
 		# check to see if the frames should be displayed to screen
 		if conf["show_video"]:
