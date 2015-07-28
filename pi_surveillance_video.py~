@@ -18,6 +18,7 @@ import json
 import httplib
 import time
 import cv2
+import smtplib
 from threading import Thread
 
 HOST = "127.0.0.1"
@@ -52,13 +53,31 @@ def acceptSocketConnection(listOfSockets):
 					elif currentData[22] == 'I':
 						print "camera::Got Minimum Color Threshold"
 					elif currentData[22] == 'X':
-						print "camera::Pixel Sensitivity"
+						print "camera::Got Pixel Sensitivity"
 					elif currentData[22] == 'E':
 						print "camera::Got Time to target"
 					else:
 						print "camera::Invalid information from Callback"
 					print "camera::acceptSocketConnection() data is: " + currentData
 					conn.close()
+
+# Email function
+def sendEmail(address):
+	message = """From: Charles Xavier <iotgroup14@gmail.com>
+To: <%s>
+Subject: Burner Left On
+
+You left your stove on, idiot!
+""" % address
+	try:
+	   smtpObj = smtplib.SMTP('smtp.gmail.com', 587)
+	   smtpObj.starttls()
+	   smtpObj.login('iotgroup14', 'P@$sw0rd1234')
+	   smtpObj.sendmail('iotgroup14@gmail.com', [address], message)
+	   smtpObj.quit()         
+	   print "Successfully sent email"
+	except Exception:
+	   print "Error: unable to send email"
 
 # main()
 if __name__=="__main__":
@@ -145,7 +164,7 @@ if __name__=="__main__":
 	avg = None
 	lastUploaded = datetime.datetime.now()
 	motionCounter = 0
-	stoveOn = False
+	colorDetected = False
 	emailSent = False
 	lastdetected = datetime.datetime.now()
 
@@ -196,9 +215,9 @@ if __name__=="__main__":
 		# draw box on the frame, and update the text
 		if count_pix >= pixel_threshold:
 			#print "[EVENT] fire detected"
-			stoveOn = True
+			colorDetected = True
 		else:
-			stoveOn = False
+			colorDetected = False
 
 		# [MOTION] if the average frame is None, initialize it
 		if avg is None:
@@ -281,7 +300,7 @@ if __name__=="__main__":
 					#put the timestamp in as a regular number for querying purposes
 					connection.request('POST', '/1/classes/Detect', json.dumps({
 							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
-							"foundtarget": stoveOn,
+							"foundtarget": colorDetected,
 							"foundmotion": text == "Occupied",
 							"lowercolorbase": str(lower_color),
 							"uppercolorbase": str(upper_color),
@@ -298,7 +317,7 @@ if __name__=="__main__":
 		# otherwise, the room is not occupied
 		else:
 			motionCounter = 0
-			if stoveOn == True:
+			if colorDetected == True:
 				#print (timestamp - lastdetected).seconds
 				#print emailSent
 				if (timestamp - lastdetected).seconds == target_timer and emailSent == False:
@@ -306,7 +325,9 @@ if __name__=="__main__":
 					#print leftOnTimer
 					#if leftOnTimer == 0:
 					emailSent = True
-		                        p1 = subprocess.Popen('python ./emailtest.py', shell=True, preexec_fn=os.setsid)
+					thread2 = Thread(target = sendEmail, args = ('jco2127@columbia.edu', ))
+					thread2.daemon = True
+					thread2.start()
 
 					if conf["use_dropbox"]:
 						# write the image to temporary file
@@ -332,7 +353,7 @@ if __name__=="__main__":
 					#put the timestamp in as a regular number for querying purposes
 					connection.request('POST', '/1/classes/Detect', json.dumps({
 							"timestamp": int(time.mktime(timestamp.timetuple()))*1000,#.strftime("%A %d %B %Y %I:%M:%S%p"),
-							"foundtarget": stoveOn,
+							"foundtarget": colorDetected,
 							"foundmotion": text == "Occupied",
 							"lowercolorbase": str(lower_color),
 							"uppercolorbase": str(upper_color),
