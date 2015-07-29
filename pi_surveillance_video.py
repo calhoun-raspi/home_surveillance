@@ -82,15 +82,11 @@ def acceptSocketConnection(listOfSockets):
                                                         global upper_color_base
                                                         upper_color_base = [int(str1),int(str2),int(str3)]
                                                         print upper_color_base		
-                                                        #upper_color = np.array(upper_color_base, dtype=np.uint8)
-                                                        #updateOnParse("uppercolorbase", str(upper_color))	
                                                 else:
                                                         print "camera::Got Minimum Color Threshold"	
                                                         global lower_color_base
                                                         lower_color_base = [int(str1),int(str2),int(str3)]
                                                         print lower_color_base
-                                                        #lower_color = np.array(lower_color_base, dtype=np.uint8)
-                                                        #updateOnParse("lowercolorbase", str(lower_color))	
 					elif currentData[22] == 'X':
 						print "camera::Got Pixel Sensitivity"
 						currentDataNumber += 3
@@ -102,7 +98,6 @@ def acceptSocketConnection(listOfSockets):
                                                 global pixel_threshold
                                                 pixel_threshold = int(str1)
                                                 print "New value: %d" % pixel_threshold
-                                                #updateOnParse("pixthresh", pixel_threshold)
 					elif currentData[22] == 'E':
 						print "camera::Got Time to target"
 						currentDataNumber += 3
@@ -114,7 +109,6 @@ def acceptSocketConnection(listOfSockets):
                                                 global target_timer
                                                 target_timer = int(str1)
                                                 print "New value: %d" % target_timer
-                                                #updateOnParse("timetotarget", target_timer)
 					elif currentData[22] == 'M':
 						print "camera::Got Email address"
 						currentDataNumber += 3
@@ -147,25 +141,6 @@ def updateOnParseAll(timestamp, colorDetected, text):
                 "uppercolorbase": str(upper_color),
                 "pixthresh": pixel_threshold,
                 "timetotarget": target_timer
-        }), {
-                "X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
-                "X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
-                "Content-Type": "application/json"
-        })
-        results = json.loads(connection.getresponse().read())
-        print results
-
-#Parse Updater for callback function. Need way to obtain most recent ID!
-def updateOnParse(stringToChange, value):
-        print lower_color_base
-	lower_color = np.array(lower_color_base, dtype=np.uint8)
-	upper_color = np.array(upper_color_base, dtype=np.uint8)
-        connection = httplib.HTTPSConnection(baseUrl, 443)
-        connection.connect()
-        #change back to 'PUT' if handling specific object ID
-        #put the timestamp in as a regular number for querying purposes
-        connection.request('PUT', '/1/classes/Detect', json.dumps({
-                stringToChange: value
         }), {
                 "X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
                 "X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
@@ -271,6 +246,7 @@ if __name__=="__main__":
 	colorDetected = False
 	emailSent = False
 	lastdetected = datetime.datetime.now()
+	count = 0
 
 	# capture frames from the camera
 	while True:
