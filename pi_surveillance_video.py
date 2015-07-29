@@ -426,5 +426,10 @@ if __name__=="__main__":
 	 
 		# clear the stream in preparation for the next frame
 		rawCapture.truncate(0)
+
+		if conf["save_results"] is True:
+			cv2.imwrite("videoframes/frame%d.jpg" % count, frame)
+                        cv2.imwrite("resolveframes/frame%d.jpg" % count, resolve)
+                        count = count + 1
 	#terminate subprocess on exiting	
 	p1.terminate()

@@ -246,6 +246,7 @@ if __name__=="__main__":
 	colorDetected = False
 	emailSent = False
 	lastdetected = datetime.datetime.now()
+	count = 0
 
 	# capture frames from the camera
 	while True:

@@ -13,5 +13,5 @@
 	"resolution": [640, 480],
 	"fps": 16,
 	"min_area": 1000,
-	"stove_timer": 10
+	"save_results": true
 }
