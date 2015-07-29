@@ -140,7 +140,8 @@ def updateOnParseAll(timestamp, colorDetected, text):
                 "lowercolorbase": str(lower_color),
                 "uppercolorbase": str(upper_color),
                 "pixthresh": pixel_threshold,
-                "timetotarget": target_timer
+                "timetotarget": target_timer,
+		"emailaddr": address
         }), {
                 "X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
                 "X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
@@ -153,7 +154,7 @@ def updateOnParseAll(timestamp, colorDetected, text):
 def sendEmail():
 	message = """From: Charles Xavier <iotgroup14@gmail.com>
 To: <%s>
-Subject: Burner Left On
+Subject: Target Detected
 
 You left your stove on, idiot!
 """ % address

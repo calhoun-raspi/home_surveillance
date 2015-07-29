@@ -140,7 +140,8 @@ def updateOnParseAll(timestamp, colorDetected, text):
                 "lowercolorbase": str(lower_color),
                 "uppercolorbase": str(upper_color),
                 "pixthresh": pixel_threshold,
-                "timetotarget": target_timer
+                "timetotarget": target_timer,
+		"emailaddr": address
         }), {
                 "X-Parse-Application-Id": "ajdBM8hNORYRg6VjxOnV1eZCCghujg7m12uKFzyI",
                 "X-Parse-REST-API-Key": "27ck1BPviHwlEaINFOL08jh5zv1LFyY5CLOfvZvX",
@@ -426,5 +427,10 @@ if __name__=="__main__":
 	 
 		# clear the stream in preparation for the next frame
 		rawCapture.truncate(0)
+
+		if conf["save_results"] is True:
+			cv2.imwrite("videoframes/frame%d.jpg" % count, frame)
+                        cv2.imwrite("resolveframes/frame%d.jpg" % count, resolve)
+                        count = count + 1
 	#terminate subprocess on exiting	
 	p1.terminate()
